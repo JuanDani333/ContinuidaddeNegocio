@@ -9,6 +9,8 @@ import { Pagination } from '../components/ui/Pagination';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { Search, ArrowLeft, Hash, User, Loader2, FileSpreadsheet } from 'lucide-react';
 import { ChartDataPoint, SceneDefinition, UserAssessment, AreaData } from '../types';
+import { API_BASE_URL } from '../config';
+
 
 const USERS_PER_PAGE = 9;
 
@@ -158,7 +160,9 @@ export const AreaDetailPage: React.FC = () => {
         <Button 
           variant="ghost" 
           className="text-slate-400 hover:text-green-400 transition-colors border border-slate-800 hover:border-green-500/50 h-[30px] text-xs"
-          onClick={() => window.location.href = `http://localhost:5176/api/reports/export?courseId=${id}`}
+          onClick={() => {
+            window.location.href = `${API_BASE_URL}/api/reports/export?courseId=${id}`
+          }}
         >
           <FileSpreadsheet className="w-4 h-4 mr-2" />
           Descargar Reporte del Curso

@@ -5,6 +5,8 @@ import { Loader2, FileSpreadsheet } from 'lucide-react';
 import { AreaData } from '../types';
 import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 import { AreaCard } from '../components/AreaCard';
+import { Layout } from '../components/Layout';
+import { API_BASE_URL } from '../config';
 import { Button } from '../components/ui/Button';
 
 export const DashboardPage: React.FC = () => {
@@ -28,7 +30,7 @@ export const DashboardPage: React.FC = () => {
   }, []);
 
   const handleDownloadReport = () => {
-    window.location.href = 'http://localhost:5176/api/reports/export';
+    window.location.href = `${API_BASE_URL}/api/reports/export`;
   };
   
   return (

@@ -1,6 +1,8 @@
 import { UserSession } from '../types';
 
-const API_URL = `${import.meta.env.VITE_API_URL || 'http://localhost:5176'}/api/auth`;
+import { API_BASE_URL } from '../config';
+
+const API_URL = `${API_BASE_URL}/api/auth`;
 
 export const login = async (username: string, password: string): Promise<UserSession> => {
   const response = await fetch(`${API_URL}/login`, {
