@@ -1,0 +1,5 @@
+{
+  "name": "CoreView",
+  "description": "A secure, magenta-themed experience tracking dashboard visualizing decision-making scores across different competence areas using radar charts.",
+  "requestFramePermissions": []
+}
