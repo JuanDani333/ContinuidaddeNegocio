@@ -19,10 +19,6 @@ export const login = async (req: Request, res: Response) => {
       return res.status(500).json({ message: 'Database error' });
     }
 
-    if (!users || users.length === 0) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
     const user = users[0];
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
