@@ -13,7 +13,8 @@ import {
   User,
   Loader2,
   FileSpreadsheet,
-} from "lucide-react";
+  Clock
+} from 'lucide-react';
 import {
   ChartDataPoint,
   SceneDefinition,
@@ -279,6 +280,27 @@ export const AreaDetailPage: React.FC = () => {
                           {totalAttempts === 0
                             ? "Sin Intentos"
                             : `${roundedAttempts}º Intento`}
+                        </div>
+                      )}
+
+                      {/* Global Time Display */}
+                      {userChartData.some((d) => d.time) && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono mt-2 bg-slate-950/30 px-2 py-0.5 rounded border border-slate-800/50">
+                          <Clock className="w-3 h-3 text-magenta-500" />
+                          <span className="text-slate-500 font-sans">Tiempo Total:</span>
+                          {(() => {
+                            const totalSeconds = userChartData.reduce(
+                              (acc, curr) => acc + (curr.time || 0),
+                              0
+                            );
+                            const mins = Math.floor(totalSeconds / 60);
+                            const secs = totalSeconds % 60;
+                            return (
+                              <span className="text-slate-300">
+                                {mins}m {secs}s
+                              </span>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>

@@ -50,6 +50,44 @@
 </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-magenta-500 selection:text-white">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+    <script>
+      // Global object to store timers for each question
+      window.questionTimers = {};
+
+      // Start the timer for a specific question ID
+      window.startQT = function(id) {
+        if (!window.questionTimers[id]) {
+          window.questionTimers[id] = { total: 0, startTime: null };
+        }
+        // Only start if not already running to avoid overwrites
+        if (!window.questionTimers[id].startTime) {
+           window.questionTimers[id].startTime = Date.now();
+           console.log(`[Timer] Started for Question ${id}`);
+        } else {
+           console.log(`[Timer] Resumed/Continued for Question ${id}`);
+        }
+      };
+
+      // Stop the timer and ACCUMULATE the time
+      window.endQT = function(id) {
+        if (window.questionTimers[id] && window.questionTimers[id].startTime) {
+          const now = Date.now();
+          const elapsedSeconds = (now - window.questionTimers[id].startTime) / 1000;
+          
+          window.questionTimers[id].total += elapsedSeconds;
+          window.questionTimers[id].startTime = null; // Stop the timer
+          
+          console.log(`[Timer] Stopped for Question ${id}. Added: ${elapsedSeconds.toFixed(2)}s. Total Accumulated: ${window.questionTimers[id].total.toFixed(2)}s`);
+        } else {
+           console.warn(`[Timer] endQT called for Question ${id} but no timer was running.`);
+        }
+      };
+      
+      // Helper function to get the current total time for a question
+      window.getQT = function(id) {
+         return window.questionTimers[id] ? window.questionTimers[id].total : 0;
+      }
+    </script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
