@@ -62,9 +62,6 @@
         // Only start if not already running to avoid overwrites
         if (!window.questionTimers[id].startTime) {
            window.questionTimers[id].startTime = Date.now();
-           console.log(`[Timer] Started for Question ${id}`);
-        } else {
-           console.log(`[Timer] Resumed/Continued for Question ${id}`);
         }
       };
 
@@ -76,10 +73,6 @@
           
           window.questionTimers[id].total += elapsedSeconds;
           window.questionTimers[id].startTime = null; // Stop the timer
-          
-          console.log(`[Timer] Stopped for Question ${id}. Added: ${elapsedSeconds.toFixed(2)}s. Total Accumulated: ${window.questionTimers[id].total.toFixed(2)}s`);
-        } else {
-           console.warn(`[Timer] endQT called for Question ${id} but no timer was running.`);
         }
       };
       
