@@ -105,36 +105,47 @@ export const exportReport = async (req: Request, res: Response) => {
             users.length
           : 0;
 
-        // 2. Refined Attempts Logic (Matching AreaCard "Promedio Global")
-        // Logic: Average of (Average Attempts per Skill - across ALL course users, not just participants in that skill)
-        const attemptsBySkill: Record<string, any[]> = {};
+        // 3. Refined Attempts Logic (Matching AreaCard "Promedio Global")
+        // Logic: Average of (Average Attempts per Skill - across ALL course users, handling 0s for missing skills)
+
+        // 3a. Identify all unique skills and all unique users for this course
+        const uniqueSkillNames = Array.from(
+          new Set(
+            cAttempts.map((a: any) => a.skills?.full_name).filter(Boolean)
+          )
+        ) as string[];
+        const allUserIds = Object.keys(userSessions);
+        const totalUsersCountForSkills = allUserIds.length || 1;
+
+        // 3b. Build a lookup for max attempt per user-skill
+        const maxAttemptsByUserSkill: Record<string, number> = {};
         cAttempts.forEach((a: any) => {
-          const skillName = a.skills?.full_name || "unknown";
-          if (!attemptsBySkill[skillName]) attemptsBySkill[skillName] = [];
-          attemptsBySkill[skillName].push(a);
+          const key = `${a.user_id}_${a.skills?.full_name}`;
+          if (
+            !maxAttemptsByUserSkill[key] ||
+            a.raw_attempt > maxAttemptsByUserSkill[key]
+          ) {
+            maxAttemptsByUserSkill[key] = a.raw_attempt;
+          }
         });
 
+        // 3c. Calculate average for each skill (including 0s for user who haven't tried it)
         const skillAverages: number[] = [];
-        Object.values(attemptsBySkill).forEach((skillAttempts: any[]) => {
-          // For a specific skill, what was the average attempts across ALL users?
-          const userMaxAttemptsForSkill: Record<string, number> = {};
-          skillAttempts.forEach((a) => {
-            if (
-              !userMaxAttemptsForSkill[a.user_id] ||
-              a.raw_attempt > userMaxAttemptsForSkill[a.user_id]
-            ) {
-              userMaxAttemptsForSkill[a.user_id] = a.raw_attempt;
-            }
+
+        uniqueSkillNames.forEach((skillName) => {
+          let sumAttempts = 0;
+          allUserIds.forEach((userId) => {
+            const key = `${userId}_${skillName}`;
+            const userMax = maxAttemptsByUserSkill[key] || 0; // Default to 0 if user hasn't attempted this skill
+            sumAttempts += userMax;
           });
-          const skillValues = Object.values(userMaxAttemptsForSkill);
-          // CRITICAL FIX: Divide by TOTAL users in the course
-          const rawSkillAvg =
-            skillValues.reduce((s, v) => s + v, 0) / totalUsersCount;
-          // REPLICATE FRONTEND EXACTLY: Round the skill average to 1 decimal immediately
-          skillAverages.push(parseFloat(rawSkillAvg.toFixed(1)));
+
+          const rawAvg = sumAttempts / totalUsersCountForSkills;
+          // Round intermediate skill average to 1 decimal (Dashboard logic)
+          skillAverages.push(parseFloat(rawAvg.toFixed(1)));
         });
 
-        // "Promedio Intentos (Curso)" = Average of the ROUNDED Skill Averages
+        // 3d. Final Average of the skill averages
         const avgAttempts = skillAverages.length
           ? skillAverages.reduce((s, v) => s + v, 0) / skillAverages.length
           : 0;
