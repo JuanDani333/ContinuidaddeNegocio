@@ -109,17 +109,45 @@ export const exportReport = async (req: Request, res: Response) => {
           ? users.reduce((sum: number, u: any) => sum + (u.totalTime || 0), 0) /
             users.length
           : 0;
-        const avgAttempts = users.length
-          ? users.reduce((sum: number, u: any) => sum + (u.attempt || 1), 0) /
-            users.length
-          : 0;
         const avgScore = users.length
           ? users.reduce((sum: number, u: any) => sum + (u.score || 0), 0) /
             users.length
           : 0;
 
-        // 2. Question Stats (All rows)
-        // Simple average of all question rows
+        // 2. Refined Attempts Logic (Matching AreaCard "Promedio Global")
+        // Logic: Average of (Average Attempts per Skill)
+        const attemptsBySkill: Record<string, any[]> = {};
+        cAttempts.forEach((a: any) => {
+          const skillName = a.skills?.full_name || "unknown";
+          if (!attemptsBySkill[skillName]) attemptsBySkill[skillName] = [];
+          attemptsBySkill[skillName].push(a);
+        });
+
+        const skillAverages: number[] = [];
+        Object.values(attemptsBySkill).forEach((skillAttempts: any[]) => {
+          // For a specific skill, what was the average attempts across users?
+          const userMaxAttemptsForSkill: Record<string, number> = {};
+          skillAttempts.forEach((a) => {
+            if (
+              !userMaxAttemptsForSkill[a.user_id] ||
+              a.raw_attempt > userMaxAttemptsForSkill[a.user_id]
+            ) {
+              userMaxAttemptsForSkill[a.user_id] = a.raw_attempt;
+            }
+          });
+          const skillValues = Object.values(userMaxAttemptsForSkill);
+          const skillAvg = skillValues.length
+            ? skillValues.reduce((s, v) => s + v, 0) / skillValues.length
+            : 0;
+          skillAverages.push(skillAvg);
+        });
+
+        // "Promedio Intentos (Curso)" = Average of the Skill Averages
+        const avgAttempts = skillAverages.length
+          ? skillAverages.reduce((s, v) => s + v, 0) / skillAverages.length
+          : 0;
+
+        // 3. Question Stats (Raw Global)
         const avgQuestAttempts = cAttempts.length
           ? cAttempts.reduce(
               (sum: number, a: any) => sum + (a.raw_attempt || 1),
@@ -136,7 +164,7 @@ export const exportReport = async (req: Request, res: Response) => {
         worksheet.addRow({
           courseName,
           avgCourseTime: formatSeconds(Math.round(avgCourseTime)),
-          avgAttempts: parseFloat(avgAttempts.toFixed(2)),
+          avgAttempts: parseFloat(avgAttempts.toFixed(1)), // Use toFixed(1) to match "~1.1" style
           avgQuestAttempts: parseFloat(avgQuestAttempts.toFixed(2)),
           avgQuestTime: formatSeconds(Math.round(avgQuestTime)),
           globalScore: (avgScore / 10).toFixed(1) + "/10",
