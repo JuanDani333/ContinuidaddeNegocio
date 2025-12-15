@@ -59,11 +59,6 @@ export const exportReport = async (req: Request, res: Response) => {
         { header: "Nombre del Curso", key: "courseName", width: 40 },
         { header: "Tiempo Promedio Curso", key: "avgCourseTime", width: 25 },
         { header: "Promedio Intentos (Curso)", key: "avgAttempts", width: 25 },
-        {
-          header: "Tiempo Promedio (Pregunta)",
-          key: "avgQuestTime",
-          width: 25,
-        },
         { header: "Nota Global", key: "globalScore", width: 15 },
       ];
 
@@ -132,15 +127,14 @@ export const exportReport = async (req: Request, res: Response) => {
             }
           });
           const skillValues = Object.values(userMaxAttemptsForSkill);
-          // CRITICAL FIX: Divide by TOTAL users in the course, treating missing users as 0?
-          // Actually AreaCard implicitly treats them as contributing 0 to the sum but increasing the count.
-          // So Sum(Attempts) / TotalUsers
-          const skillAvg =
+          // CRITICAL FIX: Divide by TOTAL users in the course
+          const rawSkillAvg =
             skillValues.reduce((s, v) => s + v, 0) / totalUsersCount;
-          skillAverages.push(skillAvg);
+          // REPLICATE FRONTEND EXACTLY: Round the skill average to 1 decimal immediately
+          skillAverages.push(parseFloat(rawSkillAvg.toFixed(1)));
         });
 
-        // "Promedio Intentos (Curso)" = Average of the Skill Averages
+        // "Promedio Intentos (Curso)" = Average of the ROUNDED Skill Averages
         const avgAttempts = skillAverages.length
           ? skillAverages.reduce((s, v) => s + v, 0) / skillAverages.length
           : 0;
