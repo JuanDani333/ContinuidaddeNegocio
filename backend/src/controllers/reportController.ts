@@ -77,11 +77,17 @@ export const exportReport = async (req: Request, res: Response) => {
         const cAttempts = attemptsByCourse[cId];
         const courseName = cAttempts[0]?.courses?.name || cId;
 
-        // 1. User Stats (One session per user)
+        // 1. Prepare Data: Unique Skills and Users
+        const uniqueSkillNames = Array.from(
+          new Set(
+            cAttempts.map((a: any) => a.skills?.full_name).filter(Boolean)
+          )
+        ) as string[];
         const userSessions: Record<string, any> = {};
+        const maxScoreByUserSkill: Record<string, number> = {}; // Key: userId_skillName
+
         cAttempts.forEach((a: any) => {
-          // Unique session per user-attempt. We only care about the "Final" state of a user.
-          // Strategy: Max attempt per user.
+          // Session tracking for Time
           if (
             !userSessions[a.user_id] ||
             a.raw_attempt > userSessions[a.user_id].raw_attempt
@@ -89,33 +95,55 @@ export const exportReport = async (req: Request, res: Response) => {
             userSessions[a.user_id] = {
               totalTime: a.total_time_seconds,
               attempt: a.raw_attempt,
-              score: a.calculated_score,
             };
           }
+
+          // Score tracking (Max per skill)
+          const key = `${a.user_id}_${a.skills?.full_name}`;
+          const score = a.calculated_score || 0;
+          if (
+            maxScoreByUserSkill[key] === undefined ||
+            score > maxScoreByUserSkill[key]
+          ) {
+            maxScoreByUserSkill[key] = score;
+          }
         });
+
         const users = Object.values(userSessions);
-        const totalUsersCount = users.length || 1; // Prevent division by zero
+        const allUserIds = Object.keys(userSessions);
+        const totalUsersCount = allUserIds.length || 1;
 
         const avgCourseTime = users.length
           ? users.reduce((sum: number, u: any) => sum + (u.totalTime || 0), 0) /
             users.length
           : 0;
-        const avgScore = users.length
-          ? users.reduce((sum: number, u: any) => sum + (u.score || 0), 0) /
-            users.length
-          : 0;
+
+        // 2. Calculate Global Score (Average of User Scores)
+        // User Score = Average of their Skill Scores (0 if missing)
+        let sumUserCourseScores = 0;
+        allUserIds.forEach((userId) => {
+          let userTotalScore = 0;
+          uniqueSkillNames.forEach((skillName) => {
+            const key = `${userId}_${skillName}`;
+            userTotalScore += maxScoreByUserSkill[key] || 0;
+          });
+          // Average score for this user across all skills (0-100 scale)
+          const userAvg = uniqueSkillNames.length
+            ? userTotalScore / uniqueSkillNames.length
+            : 0;
+          sumUserCourseScores += userAvg;
+        });
+
+        const avgScore = sumUserCourseScores / totalUsersCount;
+
+        // Format Score: Integer check
+        const scoreVal = avgScore / 10;
+        const globalScoreStr = Number.isInteger(scoreVal)
+          ? scoreVal.toFixed(0)
+          : scoreVal.toFixed(1);
 
         // 3. Refined Attempts Logic (Matching AreaCard "Promedio Global")
         // Logic: Average of (Average Attempts per Skill - across ALL course users, handling 0s for missing skills)
-
-        // 3a. Identify all unique skills and all unique users for this course
-        const uniqueSkillNames = Array.from(
-          new Set(
-            cAttempts.map((a: any) => a.skills?.full_name).filter(Boolean)
-          )
-        ) as string[];
-        const allUserIds = Object.keys(userSessions);
-        const totalUsersCountForSkills = allUserIds.length || 1;
 
         // 3b. Build a lookup for max attempt per user-skill
         const maxAttemptsByUserSkill: Record<string, number> = {};
@@ -136,21 +164,21 @@ export const exportReport = async (req: Request, res: Response) => {
           let sumAttempts = 0;
           allUserIds.forEach((userId) => {
             const key = `${userId}_${skillName}`;
-            const userMax = maxAttemptsByUserSkill[key] || 0; // Default to 0 if user hasn't attempted this skill
+            const userMax = maxAttemptsByUserSkill[key] || 0;
             sumAttempts += userMax;
           });
 
-          const rawAvg = sumAttempts / totalUsersCountForSkills;
+          const rawAvg = sumAttempts / totalUsersCount;
           // Round intermediate skill average to 1 decimal (Dashboard logic)
           skillAverages.push(parseFloat(rawAvg.toFixed(1)));
         });
 
-        // 3d. Final Average of the skill averages
+        // "Promedio Intentos (Curso)" = Average of the ROUNDED Skill Averages
         const avgAttempts = skillAverages.length
           ? skillAverages.reduce((s, v) => s + v, 0) / skillAverages.length
           : 0;
 
-        // 3. Question Stats (Raw Global)
+        // 4. Question Stats (Raw Global)
         const avgQuestTime = cAttempts.length
           ? cAttempts.reduce(
               (sum: number, a: any) => sum + (a.unit_time_seconds || 0),
@@ -163,7 +191,7 @@ export const exportReport = async (req: Request, res: Response) => {
           avgCourseTime: formatSeconds(Math.round(avgCourseTime)),
           avgAttempts: parseFloat(avgAttempts.toFixed(1)), // Use toFixed(1) to match "~1.1" style
           avgQuestTime: formatSeconds(Math.round(avgQuestTime)),
-          globalScore: (avgScore / 10).toFixed(1) + "/10",
+          globalScore: `${globalScoreStr}/10`,
         });
       }
 
@@ -455,7 +483,10 @@ export const exportReport = async (req: Request, res: Response) => {
             uniqueSkills.length > 0 ? totalScore / uniqueSkills.length : 0;
 
           // Convert 0-100 scale to 0-10 scale
-          const scoreOutOf10 = (avgScoreRaw / 10).toFixed(1);
+          const scoreVal = avgScoreRaw / 10;
+          const scoreOutOf10 = Number.isInteger(scoreVal)
+            ? scoreVal.toFixed(0)
+            : scoreVal.toFixed(1);
           const formattedScore = `${scoreOutOf10}/10`;
 
           const row: any = {
