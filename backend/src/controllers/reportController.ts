@@ -348,10 +348,8 @@ export const exportReport = async (req: Request, res: Response) => {
         Object.values(latestSessionsByUser).forEach((session: any) => {
           // Calculate score based on Sum of Skill Scores / Total Course Skills
           // This treats unattempted skills as 0, matching Dashboard logic
-          const totalScore = Object.values(session.skillScores).reduce(
-            (a: number, b: number) => a + b,
-            0
-          ) as number;
+          const scores = Object.values(session.skillScores) as number[];
+          const totalScore = scores.reduce((a, b) => a + b, 0);
           const avgScoreRaw =
             uniqueSkills.length > 0 ? totalScore / uniqueSkills.length : 0;
 
