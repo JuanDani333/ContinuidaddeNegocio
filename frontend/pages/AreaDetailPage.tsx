@@ -40,6 +40,18 @@ export const AreaDetailPage: React.FC = () => {
       try {
         const data = await fetchDashboardData();
         const area = data.find((a) => a.id === id);
+
+        // FIX: Enforce specific skill order for EAC course
+        if (area && area.id === 'team-eac') {
+          const eacOrder = ['eac_1_combined', 'eac_3', 'eac_5', 'eac_4', 'eac_6'];
+          area.scenes.sort((a, b) => {
+             const indexA = eacOrder.indexOf(a.id);
+             const indexB = eacOrder.indexOf(b.id);
+             // If not found (shouldn't happen), put at end
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+          });
+        }
+
         setAreaData(area);
       } catch (error) {
         console.error(error);
