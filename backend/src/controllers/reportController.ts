@@ -167,6 +167,59 @@ export const exportReport = async (req: Request, res: Response) => {
         });
       }
 
+      // ==========================================
+      // NEW SECTION: Global Skill Averages (Promedio Transversal)
+      // ==========================================
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+      const skillHeaderRow = worksheet.addRow([
+        "Reporte Global por Habilidad",
+        "Nota Promedio",
+      ]);
+      skillHeaderRow.font = { bold: true };
+
+      // 1. Group ALL attempts by Skill
+      const globalSkillGroups: Record<string, any[]> = {};
+      (attempts || []).forEach((a: any) => {
+        const sName = a.skills?.full_name;
+        if (sName) {
+          if (!globalSkillGroups[sName]) globalSkillGroups[sName] = [];
+          globalSkillGroups[sName].push(a);
+        }
+      });
+
+      // 2. Calculate Average per Skill (Average of User Max Scores)
+      Object.entries(globalSkillGroups).forEach(
+        ([skillName, skillAttempts]) => {
+          // Find max score per user for this skill
+          const maxScoreByUser: Record<string, number> = {};
+
+          skillAttempts.forEach((a) => {
+            const score = a.calculated_score || 0;
+            if (
+              maxScoreByUser[a.user_id] === undefined ||
+              score > maxScoreByUser[a.user_id]
+            ) {
+              maxScoreByUser[a.user_id] = score;
+            }
+          });
+
+          const scores = Object.values(maxScoreByUser);
+          const avgScoreRaw = scores.length
+            ? scores.reduce((a, b) => a + b, 0) / scores.length
+            : 0;
+
+          // Format 0-10
+          const scoreFormatted = (avgScoreRaw / 10).toFixed(1) + "/10";
+
+          // aligned with 'courseName' and 'avgCourseTime' columns
+          worksheet.addRow({
+            courseName: skillName,
+            avgCourseTime: scoreFormatted,
+          });
+        }
+      );
+
       // Style Header
       worksheet.getRow(1).font = { bold: true };
       worksheet.getRow(1).fill = {
