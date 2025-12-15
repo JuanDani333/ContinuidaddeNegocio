@@ -60,11 +60,6 @@ export const exportReport = async (req: Request, res: Response) => {
         { header: "Tiempo Promedio Curso", key: "avgCourseTime", width: 25 },
         { header: "Promedio Intentos (Curso)", key: "avgAttempts", width: 25 },
         {
-          header: "Promedio Intentos (Pregunta)",
-          key: "avgQuestAttempts",
-          width: 25,
-        },
-        {
           header: "Tiempo Promedio (Pregunta)",
           key: "avgQuestTime",
           width: 25,
@@ -104,6 +99,7 @@ export const exportReport = async (req: Request, res: Response) => {
           }
         });
         const users = Object.values(userSessions);
+        const totalUsersCount = users.length || 1; // Prevent division by zero
 
         const avgCourseTime = users.length
           ? users.reduce((sum: number, u: any) => sum + (u.totalTime || 0), 0) /
@@ -115,7 +111,7 @@ export const exportReport = async (req: Request, res: Response) => {
           : 0;
 
         // 2. Refined Attempts Logic (Matching AreaCard "Promedio Global")
-        // Logic: Average of (Average Attempts per Skill)
+        // Logic: Average of (Average Attempts per Skill - across ALL course users, not just participants in that skill)
         const attemptsBySkill: Record<string, any[]> = {};
         cAttempts.forEach((a: any) => {
           const skillName = a.skills?.full_name || "unknown";
@@ -125,7 +121,7 @@ export const exportReport = async (req: Request, res: Response) => {
 
         const skillAverages: number[] = [];
         Object.values(attemptsBySkill).forEach((skillAttempts: any[]) => {
-          // For a specific skill, what was the average attempts across users?
+          // For a specific skill, what was the average attempts across ALL users?
           const userMaxAttemptsForSkill: Record<string, number> = {};
           skillAttempts.forEach((a) => {
             if (
@@ -136,9 +132,11 @@ export const exportReport = async (req: Request, res: Response) => {
             }
           });
           const skillValues = Object.values(userMaxAttemptsForSkill);
-          const skillAvg = skillValues.length
-            ? skillValues.reduce((s, v) => s + v, 0) / skillValues.length
-            : 0;
+          // CRITICAL FIX: Divide by TOTAL users in the course, treating missing users as 0?
+          // Actually AreaCard implicitly treats them as contributing 0 to the sum but increasing the count.
+          // So Sum(Attempts) / TotalUsers
+          const skillAvg =
+            skillValues.reduce((s, v) => s + v, 0) / totalUsersCount;
           skillAverages.push(skillAvg);
         });
 
@@ -148,12 +146,6 @@ export const exportReport = async (req: Request, res: Response) => {
           : 0;
 
         // 3. Question Stats (Raw Global)
-        const avgQuestAttempts = cAttempts.length
-          ? cAttempts.reduce(
-              (sum: number, a: any) => sum + (a.raw_attempt || 1),
-              0
-            ) / cAttempts.length
-          : 0;
         const avgQuestTime = cAttempts.length
           ? cAttempts.reduce(
               (sum: number, a: any) => sum + (a.unit_time_seconds || 0),
@@ -165,7 +157,6 @@ export const exportReport = async (req: Request, res: Response) => {
           courseName,
           avgCourseTime: formatSeconds(Math.round(avgCourseTime)),
           avgAttempts: parseFloat(avgAttempts.toFixed(1)), // Use toFixed(1) to match "~1.1" style
-          avgQuestAttempts: parseFloat(avgQuestAttempts.toFixed(2)),
           avgQuestTime: formatSeconds(Math.round(avgQuestTime)),
           globalScore: (avgScore / 10).toFixed(1) + "/10",
         });
