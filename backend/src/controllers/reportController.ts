@@ -271,6 +271,24 @@ export const exportReport = async (req: Request, res: Response) => {
           uniqueSkills.sort();
         }
 
+        // Pre-process: Count total attempts per user-skill for the Scoring Matrix
+        // Matrix: 1st=10, 2nd=8, 3rd=6, 4th=4, 5th=2, 6th+=0
+        const attemptsCountByUserSkill: Record<string, number> = {};
+        courseAttempts.forEach((a: any) => {
+          const skillName = a.skills?.full_name;
+          if (skillName && a.user_id) {
+            const key = `${a.user_id}_${skillName}`;
+            attemptsCountByUserSkill[key] =
+              (attemptsCountByUserSkill[key] || 0) + 1;
+          }
+        });
+
+        const calculateMatrixScore = (attemptNum: number): string => {
+          if (attemptNum < 1) return "0/10";
+          const score = Math.max(0, 10 - (attemptNum - 1) * 2);
+          return `${score}/10`;
+        };
+
         // Group by Session (User + Attempt)
         const sessions = courseAttempts.reduce((acc: any, curr: any) => {
           // Fallback session ID if missing (for old data)
@@ -279,13 +297,14 @@ export const exportReport = async (req: Request, res: Response) => {
 
           if (!acc[sessionId]) {
             acc[sessionId] = {
+              userId: curr.user_id, // Store userId for lookup
               userName: curr.users?.name || "Unknown",
               userEmail: curr.users?.email || "Unknown",
               attempt: curr.raw_attempt,
               totalTime: curr.total_time_seconds,
               timestamp: curr.timestamp,
-              skills: {},
-              skillScores: {}, // Track scores per skill
+              skills: {}, // Stores time
+              skillScores: {}, // Stores score from DB (legacy/global usage if needed)
             };
           }
 
@@ -296,10 +315,10 @@ export const exportReport = async (req: Request, res: Response) => {
 
           const skillName = curr.skills?.full_name;
           if (skillName) {
-            // Add skill time
+            // Add skill time for this session
             acc[sessionId].skills[skillName] = curr.unit_time_seconds;
 
-            // Add skill score (first one encountered is latest due to sort)
+            // For global score calc, we keep tracking the calculated_score property if present
             if (
               curr.calculated_score !== null &&
               acc[sessionId].skillScores[skillName] === undefined
@@ -315,8 +334,6 @@ export const exportReport = async (req: Request, res: Response) => {
 
         Object.values(sessions).forEach((session: any) => {
           const userEmail = session.userEmail;
-          // If we haven't seen this user, or this session is a later attempt
-          // We use attempt number as primary sort, timestamp as secondary
           if (
             !latestSessionsByUser[userEmail] ||
             session.attempt > latestSessionsByUser[userEmail].attempt ||
@@ -336,25 +353,34 @@ export const exportReport = async (req: Request, res: Response) => {
           { header: "Tiempo Global", key: "totalTime", width: 15 },
           { header: "Puntuación Promedio", key: "avgScore", width: 15 },
           { header: "Fecha", key: "date", width: 20 },
-          ...uniqueSkills.map((skill) => ({
-            header: skill,
-            key: skill,
-            width: 25,
-          })),
         ];
+
+        // Add dynamic columns for each skill (Time + Score)
+        uniqueSkills.forEach((skill) => {
+          columns.push({
+            header: `${skill} (Tiempo)`,
+            key: `${skill}_time`,
+            width: 15,
+          });
+          columns.push({
+            header: `${skill} (Nota)`,
+            key: `${skill}_score`,
+            width: 10,
+          });
+        });
+
         worksheet.columns = columns;
 
         // Add Rows
         Object.values(latestSessionsByUser).forEach((session: any) => {
           // Calculate score based on Sum of Skill Scores / Total Course Skills
-          // This treats unattempted skills as 0, matching Dashboard logic
           const scores = Object.values(session.skillScores) as number[];
           const totalScore = scores.reduce((a, b) => a + b, 0);
           const avgScoreRaw =
             uniqueSkills.length > 0 ? totalScore / uniqueSkills.length : 0;
 
           // Convert 0-100 scale to 0-10 scale
-          const scoreOutOf10 = (avgScoreRaw / 10).toFixed(1); // Keep 1 decimal for precision like "3.6"
+          const scoreOutOf10 = (avgScoreRaw / 10).toFixed(1);
           const formattedScore = `${scoreOutOf10}/10`;
 
           const row: any = {
@@ -366,10 +392,25 @@ export const exportReport = async (req: Request, res: Response) => {
             date: new Date(session.timestamp).toLocaleString(),
           };
 
-          // Format skill times
+          // Format skill times and scores
           uniqueSkills.forEach((skill) => {
             const time = session.skills[skill];
-            row[skill] = time !== undefined ? formatSeconds(time) : "00:00:00";
+            // Time
+            row[`${skill}_time`] =
+              time !== undefined ? formatSeconds(time) : "00:00:00";
+
+            // Score (Matrix Logic)
+            // If the user participated in this skill in THIS session, we calculate the score based on cumulative attempts
+            // If they did NOT participate in this session (time undef), score is 0/10? Or N/A?
+            // Assuming 0/10 if not present in latest, or we check history?
+            // Usually if missing from latest, it means 0.
+            if (time !== undefined) {
+              const key = `${session.userId}_${skill}`;
+              const attemptCount = attemptsCountByUserSkill[key] || 1;
+              row[`${skill}_score`] = calculateMatrixScore(attemptCount);
+            } else {
+              row[`${skill}_score`] = "0/10";
+            }
           });
 
           worksheet.addRow(row);
