@@ -261,7 +261,11 @@ export const exportReport = async (req: Request, res: Response) => {
           });
 
           const avgScoreRaw = sumScores / totalUsersCount;
-          const scoreFormatted = (avgScoreRaw / 10).toFixed(1) + "/10";
+          const scoreVal = avgScoreRaw / 10;
+          const scoreFormatted =
+            (Number.isInteger(scoreVal)
+              ? scoreVal.toFixed(0)
+              : scoreVal.toFixed(1)) + "/10";
 
           worksheet.addRow({
             courseName: `   ${skillName}`, // Indent slightly for visual hierarchy
