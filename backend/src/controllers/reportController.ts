@@ -285,7 +285,7 @@ export const exportReport = async (req: Request, res: Response) => {
               totalTime: curr.total_time_seconds,
               timestamp: curr.timestamp,
               skills: {},
-              scores: [],
+              skillScores: {}, // Track scores per skill
             };
           }
 
@@ -294,15 +294,18 @@ export const exportReport = async (req: Request, res: Response) => {
             acc[sessionId].totalTime = curr.total_time_seconds;
           }
 
-          // Add score
-          if (curr.calculated_score !== null) {
-            acc[sessionId].scores.push(curr.calculated_score);
-          }
-
-          // Add skill time
           const skillName = curr.skills?.full_name;
           if (skillName) {
+            // Add skill time
             acc[sessionId].skills[skillName] = curr.unit_time_seconds;
+
+            // Add skill score (first one encountered is latest due to sort)
+            if (
+              curr.calculated_score !== null &&
+              acc[sessionId].skillScores[skillName] === undefined
+            ) {
+              acc[sessionId].skillScores[skillName] = curr.calculated_score;
+            }
           }
           return acc;
         }, {});
@@ -343,14 +346,17 @@ export const exportReport = async (req: Request, res: Response) => {
 
         // Add Rows
         Object.values(latestSessionsByUser).forEach((session: any) => {
+          // Calculate score based on Sum of Skill Scores / Total Course Skills
+          // This treats unattempted skills as 0, matching Dashboard logic
+          const totalScore = Object.values(session.skillScores).reduce(
+            (a: number, b: number) => a + b,
+            0
+          ) as number;
           const avgScoreRaw =
-            session.scores.length > 0
-              ? session.scores.reduce((a: number, b: number) => a + b, 0) /
-                session.scores.length
-              : 0;
+            uniqueSkills.length > 0 ? totalScore / uniqueSkills.length : 0;
 
           // Convert 0-100 scale to 0-10 scale
-          const scoreOutOf10 = Math.round(avgScoreRaw / 10);
+          const scoreOutOf10 = (avgScoreRaw / 10).toFixed(1); // Keep 1 decimal for precision like "3.6"
           const formattedScore = `${scoreOutOf10}/10`;
 
           const row: any = {
