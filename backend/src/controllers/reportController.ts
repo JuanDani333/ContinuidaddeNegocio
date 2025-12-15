@@ -168,57 +168,79 @@ export const exportReport = async (req: Request, res: Response) => {
       }
 
       // ==========================================
-      // NEW SECTION: Global Skill Averages (Promedio Transversal)
+      // NEW SECTION: Global Skill Averages by Course
       // ==========================================
       worksheet.addRow([]);
       worksheet.addRow([]);
       const skillHeaderRow = worksheet.addRow([
-        "Reporte Global por Habilidad",
+        "Reporte Global por Curso y Habilidad",
         "Nota Promedio",
       ]);
-      skillHeaderRow.font = { bold: true };
+      skillHeaderRow.font = { bold: true, size: 14 };
 
-      // 1. Group ALL attempts by Skill
-      const globalSkillGroups: Record<string, any[]> = {};
-      (attempts || []).forEach((a: any) => {
-        const sName = a.skills?.full_name;
-        if (sName) {
-          if (!globalSkillGroups[sName]) globalSkillGroups[sName] = [];
-          globalSkillGroups[sName].push(a);
-        }
-      });
+      // Iterate through each course to list its skills and averages
+      Object.keys(attemptsByCourse).forEach((cId) => {
+        const cAttempts = attemptsByCourse[cId];
+        const courseName = cAttempts[0]?.courses?.name || cId;
 
-      // 2. Calculate Average per Skill (Average of User Max Scores)
-      Object.entries(globalSkillGroups).forEach(
-        ([skillName, skillAttempts]) => {
-          // Find max score per user for this skill
-          const maxScoreByUser: Record<string, number> = {};
+        // Add Course Header
+        worksheet.addRow([]);
+        const courseRow = worksheet.addRow([courseName]);
+        courseRow.font = { bold: true, color: { argb: "FF000000" } }; // Bold black
+        courseRow.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FFF0F0F0" },
+        }; // Light gray background
 
-          skillAttempts.forEach((a) => {
-            const score = a.calculated_score || 0;
-            if (
-              maxScoreByUser[a.user_id] === undefined ||
-              score > maxScoreByUser[a.user_id]
-            ) {
-              maxScoreByUser[a.user_id] = score;
-            }
+        // 1. Identify users and skills for this course
+        const uniqueSkillNames = Array.from(
+          new Set(
+            cAttempts.map((a: any) => a.skills?.full_name).filter(Boolean)
+          )
+        ) as string[];
+        const userSessions: Record<string, any> = {};
+        cAttempts.forEach((a: any) => {
+          if (
+            !userSessions[a.user_id] ||
+            a.raw_attempt > userSessions[a.user_id].raw_attempt
+          ) {
+            userSessions[a.user_id] = { final: true }; // Just distinct users
+          }
+        });
+        const allUserIds = Object.keys(userSessions);
+        const totalUsersCount = allUserIds.length || 1;
+
+        // 2. Build Max Score Lookup per (User + Skill)
+        const maxScoreByUserSkill: Record<string, number> = {};
+        cAttempts.forEach((a: any) => {
+          const key = `${a.user_id}_${a.skills?.full_name}`;
+          const score = a.calculated_score || 0;
+          if (
+            maxScoreByUserSkill[key] === undefined ||
+            score > maxScoreByUserSkill[key]
+          ) {
+            maxScoreByUserSkill[key] = score;
+          }
+        });
+
+        // 3. Calculate and List Averages per Skill
+        uniqueSkillNames.sort().forEach((skillName) => {
+          let sumScores = 0;
+          allUserIds.forEach((userId) => {
+            const key = `${userId}_${skillName}`;
+            sumScores += maxScoreByUserSkill[key] || 0; // Default 0 if not attempted
           });
 
-          const scores = Object.values(maxScoreByUser);
-          const avgScoreRaw = scores.length
-            ? scores.reduce((a, b) => a + b, 0) / scores.length
-            : 0;
-
-          // Format 0-10
+          const avgScoreRaw = sumScores / totalUsersCount;
           const scoreFormatted = (avgScoreRaw / 10).toFixed(1) + "/10";
 
-          // aligned with 'courseName' and 'avgCourseTime' columns
           worksheet.addRow({
-            courseName: skillName,
+            courseName: `   ${skillName}`, // Indent slightly for visual hierarchy
             avgCourseTime: scoreFormatted,
           });
-        }
-      );
+        });
+      });
 
       // Style Header
       worksheet.getRow(1).font = { bold: true };
@@ -402,7 +424,7 @@ export const exportReport = async (req: Request, res: Response) => {
         const columns = [
           { header: "Nombre", key: "userName", width: 30 },
           { header: "Email", key: "userEmail", width: 30 },
-          { header: "Intento", key: "attempt", width: 10 },
+          { header: "Número de Intento", key: "attempt", width: 10 },
           { header: "Tiempo Global", key: "totalTime", width: 15 },
           { header: "Puntuación Promedio", key: "avgScore", width: 15 },
           { header: "Fecha", key: "date", width: 20 },
