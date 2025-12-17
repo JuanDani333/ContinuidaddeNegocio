@@ -82,6 +82,23 @@ export const AreaDetailPage: React.FC = () => {
              const indexB = ereOrderKeywords.findIndex(k => nameB.includes(k));
              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
            });
+        } else if (area && area.id === 'team-tisi') {
+           // Sort by Name Keywords for TI y SI
+           const tisiOrderKeywords = [
+             "Resolución de problemas",
+             "Dirección de personas", 
+             "Liderazgo",
+             "Inteligencia emocional",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+           area.scenes.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = tisiOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = tisiOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+           });
         }
 
         setAreaData(area);

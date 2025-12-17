@@ -64,6 +64,22 @@ export const AreaCard: React.FC<AreaCardProps> = ({ area, viewMode }) => {
              const indexB = ereOrderKeywords.findIndex(k => nameB.includes(k));
              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
          });
+    } else if (area.id === 'team-tisi') {
+         const tisiOrderKeywords = [
+             "Resolución de problemas",
+             "Dirección de personas", 
+             "Liderazgo",
+             "Inteligencia emocional",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+         sortedConfig.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = tisiOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = tisiOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+         });
     }
 
     const sceneOrder = sortedConfig.map(s => s.short);
