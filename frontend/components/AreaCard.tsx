@@ -48,6 +48,22 @@ export const AreaCard: React.FC<AreaCardProps> = ({ area, viewMode }) => {
              const indexB = eccOrderKeywords.findIndex(k => nameB.includes(k));
              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
          });
+    } else if (area.id === 'team-ere') {
+         const ereOrderKeywords = [
+             "Dirección de personas", 
+             "Liderazgo",
+             "Inteligencia emocional",
+             "Resolución de problemas",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+         sortedConfig.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = ereOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = ereOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+         });
     }
 
     const sceneOrder = sortedConfig.map(s => s.short);

@@ -65,6 +65,23 @@ export const AreaDetailPage: React.FC = () => {
              const indexB = eccOrderKeywords.findIndex(k => nameB.includes(k));
              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
            });
+        } else if (area && area.id === 'team-ere') {
+           // Sort by Name Keywords for ERE
+           const ereOrderKeywords = [
+             "Dirección de personas", 
+             "Liderazgo",
+             "Inteligencia emocional",
+             "Resolución de problemas",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+           area.scenes.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = ereOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = ereOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+           });
         }
 
         setAreaData(area);
