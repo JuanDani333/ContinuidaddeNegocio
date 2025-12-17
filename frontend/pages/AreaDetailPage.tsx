@@ -47,9 +47,24 @@ export const AreaDetailPage: React.FC = () => {
           area.scenes.sort((a, b) => {
              const indexA = eacOrder.indexOf(a.id);
              const indexB = eacOrder.indexOf(b.id);
-             // If not found (shouldn't happen), put at end
              return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
           });
+        } else if (area && area.id === 'team-ecc') {
+           // Sort by Name Keywords for ECC
+           const eccOrderKeywords = [
+             "Dirección de personas", 
+             "Inteligencia emocional",
+             "Resolución de problemas",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+           area.scenes.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = eccOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = eccOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+           });
         }
 
         setAreaData(area);
