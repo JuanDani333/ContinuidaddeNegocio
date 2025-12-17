@@ -22,7 +22,35 @@ export const AreaCard: React.FC<AreaCardProps> = ({ area, viewMode }) => {
     const pxTotals: Record<string, number> = {};
     const attemptTotals: Record<string, number> = {};
     const timeTotals: Record<string, number> = {}; // NEW: Time totals
-    const sceneOrder = sceneConfig.map(s => s.short);
+
+    // Sort sceneConfig if needed based on area.id
+    let sortedConfig = [...sceneConfig]; // Clone to avoid mutation
+
+    if (area.id === 'team-eac') {
+        const eacOrder = ['eac_1_combined', 'eac_3', 'eac_5', 'eac_4', 'eac_6'];
+        sortedConfig.sort((a, b) => {
+             const indexA = eacOrder.indexOf(a.id);
+             const indexB = eacOrder.indexOf(b.id);
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+        });
+    } else if (area.id === 'team-ecc') {
+         const eccOrderKeywords = [
+             "Dirección de personas", 
+             "Inteligencia emocional",
+             "Resolución de problemas",
+             "Orientación al logro",
+             "Conocimiento de la norma"
+           ];
+         sortedConfig.sort((a, b) => {
+             const nameA = a.full || "";
+             const nameB = b.full || "";
+             const indexA = eccOrderKeywords.findIndex(k => nameA.includes(k));
+             const indexB = eccOrderKeywords.findIndex(k => nameB.includes(k));
+             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+         });
+    }
+
+    const sceneOrder = sortedConfig.map(s => s.short);
 
     // 1. ITERATE through all users to sum up their specific results
     assessments.forEach(user => {
