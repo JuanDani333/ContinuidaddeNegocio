@@ -55,26 +55,69 @@ app.post("/api/track", async (req, res) => {
       );
     }
 
-    // 2. Guardar Intentos (Mapeando a nuestra estructura de tablas)
-    // 2. Guardar Intentos (Mapeando a nuestra estructura de tablas)
+    // 2. Guardar Intentos y "Curar" Tiempos (Smart Time Healing)
     if (data.attempts && Array.isArray(data.attempts)) {
-      const sessionId = `session_${Date.now()}`; // Generate ONCE
-      const attemptsToInsert = data.attempts.map((attempt: any) => ({
-        user_id: data.userId,
-        skill_id: attempt.skillId,
-        course_id: data.courseId,
-        raw_attempt: Number(attempt.attempt),
-        unit_time_seconds: attempt.unitTime
+      const sessionId = `session_${Date.now()}`;
+
+      // PASO A: Obtener el último tiempo total registrado para calcular la diferencia
+      // Esto nos permite "recuperar" el tiempo unitario si Storyline envía 0
+      let lastTotalTime = 0;
+
+      // Consultamos el máximo total_time_seconds actual para este usuario y curso
+      const { data: lastAttemptData } = await supabase
+        .from("attempts")
+        .select("total_time_seconds")
+        .eq("user_id", data.userId)
+        .eq("course_id", data.courseId)
+        .order("total_time_seconds", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastAttemptData) {
+        lastTotalTime = lastAttemptData.total_time_seconds || 0;
+      }
+
+      const attemptsToInsert = data.attempts.map((attempt: any) => {
+        // Parsear tiempos asegurando enteros
+        let unitTime = attempt.unitTime
           ? parseInt(String(attempt.unitTime).replace("s", ""))
-          : 0,
-        total_time_seconds: data.totalTime
+          : 0;
+
+        const totalTime = data.totalTime
           ? parseInt(String(data.totalTime).replace("s", ""))
-          : 0,
-        question_id: attempt.questionId || null,
-        session_id: sessionId,
-        calculated_score: attempt.score || 0, // Add score if present in payload
-        timestamp: new Date().toISOString(),
-      }));
+          : 0;
+
+        // LÓGICA DE CURACIÓN:
+        // Si unitTime es 0 pero el total ha avanzado, deducimos el unitTime
+        if (unitTime === 0 && totalTime > lastTotalTime) {
+          const calculatedDiff = totalTime - lastTotalTime;
+          // Sanity check: Si la diferencia es razonable (ej. menos de 10 min) asumimos es correcta
+          if (calculatedDiff > 0 && calculatedDiff < 600) {
+            console.log(
+              `🩹 Curando tiempo para ${attempt.skillId}: 0s -> ${calculatedDiff}s`
+            );
+            unitTime = calculatedDiff;
+          }
+        }
+
+        // Actualizamos lastTotalTime para el siguiente item del loop (si es un batch)
+        if (totalTime > lastTotalTime) {
+          lastTotalTime = totalTime;
+        }
+
+        return {
+          user_id: data.userId,
+          skill_id: attempt.skillId,
+          course_id: data.courseId,
+          raw_attempt: Number(attempt.attempt),
+          unit_time_seconds: unitTime,
+          total_time_seconds: totalTime,
+          question_id: attempt.questionId || null,
+          session_id: sessionId,
+          calculated_score: attempt.score || 0,
+          timestamp: new Date().toISOString(),
+        };
+      });
 
       const { error } = await supabase
         .from("attempts")
