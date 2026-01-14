@@ -455,7 +455,7 @@ export const exportReport = async (req: Request, res: Response) => {
         // Define Columns
         const columns = [
           { header: "Nombre", key: "userName", width: 30 },
-          { header: "Email", key: "userEmail", width: 30 },
+          { header: "ID / Email", key: "userEmail", width: 30 },
           { header: "Número de Intento", key: "attempt", width: 10 },
           { header: "Tiempo Global", key: "totalTime", width: 15 },
           { header: "Puntuación Promedio", key: "avgScore", width: 15 },

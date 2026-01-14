@@ -6,7 +6,7 @@
 
 SELECT 
     u.name AS "Nombre Usuario",
-    u.email AS "Email",
+    u.email AS "ID / Email",
     
     -- Conversión de Zona Horaria (UTC -> Hora Local)
     -- Ajustado para Ecuador/Colombia/Perú (UTC-5)

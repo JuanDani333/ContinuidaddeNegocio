@@ -7,7 +7,7 @@
 SELECT 
     u.id as user_id,
     u.name as user_name,
-    u.email,
+    u.email AS "ID / Email",
     -- Intentamos mostrar created_at si existe, si no, last_seen
     -- Supabase suele añadir created_at por defecto.
     u.last_seen,

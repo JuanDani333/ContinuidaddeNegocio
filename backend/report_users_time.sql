@@ -4,7 +4,7 @@
 
 SELECT 
     u.name AS "Nombre Usuario",
-    u.email AS "Email",
+    u.email AS "ID / Email",
     u.last_seen AS "Última Conexión",
     
     -- Métricas de Intentos
