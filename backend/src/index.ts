@@ -17,7 +17,7 @@ app.use(
     origin: "*", // Para pruebas, luego restringe
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-debug"],
-  })
+  }),
 );
 
 app.use(express.json());
@@ -51,7 +51,7 @@ app.post("/api/track", async (req, res) => {
           email: data.userEmail,
           last_seen: new Date().toISOString(),
         },
-        { onConflict: "id" }
+        { onConflict: "id" },
       );
     }
 
@@ -94,10 +94,21 @@ app.post("/api/track", async (req, res) => {
           // Sanity check: Si la diferencia es razonable (ej. menos de 10 min) asumimos es correcta
           if (calculatedDiff > 0 && calculatedDiff < 600) {
             console.log(
-              `🩹 Curando tiempo para ${attempt.skillId}: 0s -> ${calculatedDiff}s`
+              `🩹 Curando tiempo para ${attempt.skillId}: 0s -> ${calculatedDiff}s`,
             );
             unitTime = calculatedDiff;
           }
+        }
+
+        // FALLBACK DE EMERGENCIA: Si AMBOS son 0, asignar tiempo estimado
+        // Esto previene pérdida total de datos cuando Storyline no envía tiempos
+        if (unitTime === 0 && totalTime === 0) {
+          const DEFAULT_TIME = 30; // 30 segundos por pregunta (estimado conservador)
+          console.log(
+            `⚠️ FALLBACK: Asignando ${DEFAULT_TIME}s por defecto para ${attempt.skillId} (ambos tiempos en 0)`,
+          );
+          unitTime = DEFAULT_TIME;
+          // Nota: Dejamos totalTime en 0 porque no podemos inventar un acumulado
         }
 
         // Actualizamos lastTotalTime para el siguiente item del loop (si es un batch)
@@ -142,7 +153,7 @@ if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {
     console.log(`✅ Servidor en http://localhost:${PORT}`);
     console.log(
-      `📡 Endpoint para Storyline: POST http://localhost:${PORT}/api/track`
+      `📡 Endpoint para Storyline: POST http://localhost:${PORT}/api/track`,
     );
   });
 }
