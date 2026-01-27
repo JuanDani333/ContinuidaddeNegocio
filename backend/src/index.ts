@@ -100,9 +100,10 @@ app.post("/api/track", async (req, res) => {
           }
         }
 
-        // FALLBACK DE EMERGENCIA: Si AMBOS son 0, asignar tiempo estimado REALISTA
-        // Esto previene pérdida total de datos cuando Storyline no envía tiempos
-        if (unitTime === 0 && totalTime === 0) {
+        // FALLBACK DE EMERGENCIA AGRESIVO:
+        // Si unitTime sigue siendo 0 (falló healing o no hay datos), asignar tiempo estimado
+        // MODIFICADO: Ahora aplica SIEMPRE que unitTime sea 0, aunque haya totalTime.
+        if (unitTime === 0) {
           const attemptNum = Number(attempt.attempt) || 1;
 
           // Rangos basados en datos reales de usuarios:
@@ -125,9 +126,9 @@ app.post("/api/track", async (req, res) => {
             Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
 
           console.log(
-            `⚠️ FALLBACK: Asignando ${unitTime}s (intento ${attemptNum}, rango ${minTime}-${maxTime}s) para ${attempt.skillId}`,
+            `⚠️ FALLBACK AGRESIVO: Asignando ${unitTime}s (intento ${attemptNum}) para ${attempt.skillId} (Original: 0s)`,
           );
-          // Nota: Dejamos totalTime en 0 porque no podemos inventar un acumulado
+          // Nota: No tocamos totalTime, solo aseguramos que la pregunta tenga valor
         }
 
         // Actualizamos lastTotalTime para el siguiente item del loop (si es un batch)
